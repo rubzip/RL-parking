@@ -28,3 +28,9 @@ class Parking:
     def car_initialization(self) -> tuple[float]:
         """New car state"""
         return self.x, self.y, self.theta
+
+    def get_parking_vector(self, car: Rectangle) -> np.ndarray:
+        return np.array([
+            self.parking_slot.x - car.x,
+            self.parking_slot.y - car.y
+        ])
