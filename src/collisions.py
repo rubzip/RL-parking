@@ -12,6 +12,7 @@ class Rectangle:
         # Pre-calculate rotation matrix components to save time during high-freq calls
         self.c, self.s = np.cos(self.theta), np.sin(self.theta)
         self.rot_matrix = np.array([[self.c, -self.s], [self.s, self.c]])
+        self.inv_rot = np.array([[self.c, self.s], [-self.s, self.c]])
         self.corners = None
         self.sample_points = None
 
@@ -32,8 +33,7 @@ class Rectangle:
         Returns boolean array (N,) indicating which points are inside.
         """
         local_points = points - np.array([self.x, self.y])
-        inv_rot = np.array([[self.c, self.s], [-self.s, self.c]])
-        local_aligned = local_points @ inv_rot.T
+        local_aligned = local_points @ self.inv_rot.T
         in_w = np.abs(local_aligned[:, 0]) <= (self.w / 2 + 1e-6)
         in_h = np.abs(local_aligned[:, 1]) <= (self.h / 2 + 1e-6)
         return in_w & in_h
