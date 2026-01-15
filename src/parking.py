@@ -1,3 +1,4 @@
+from copy import copy
 import numpy as np
 from .collisions import Rectangle
 from .models import CarState
@@ -22,7 +23,7 @@ class Parking:
     
     def get_new_car(self) -> CarState:
         """New car state"""
-        return self.car_init
+        return copy(self.car_init)
 
     def get_parking_vector(self, car: Rectangle) -> np.ndarray:
         return np.array([
