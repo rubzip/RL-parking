@@ -1,18 +1,13 @@
+import numpy as np
 from .collisions import Rectangle
+from .models import CarState
 
 
 class Parking:
-    def __init__(self, obstacles: list[Rectangle], parking_slot: Rectangle, car_init: tuple[float, float, float, float, float]):
+    def __init__(self, obstacles: list[Rectangle], parking_slot: Rectangle, car_init: CarState):
         self.obstacles = obstacles
         self.parking_slot = parking_slot
-
-        x, y, theta, w, h = car_init
-        car = Rectangle(x, y, theta, w, h)
-        if self.is_collision(car):
-            raise ValueError("ERROR initializing car")
-        self.x = x
-        self.y = y
-        self.theta = theta
+        self.car_init = car_init
     
     def is_collision(self, car: Rectangle) -> bool:
         """Car is crashing"""
@@ -25,9 +20,9 @@ class Parking:
         """Which proportion of car is inside parking_slot"""
         return car.proportion_in(self.parking_slot)
     
-    def car_initialization(self) -> tuple[float]:
+    def get_new_car(self) -> CarState:
         """New car state"""
-        return self.x, self.y, self.theta
+        return self.car_init
 
     def get_parking_vector(self, car: Rectangle) -> np.ndarray:
         return np.array([
