@@ -76,6 +76,6 @@ class Parking:
                     t = _ray_segment_intersection(origin, ray_dir, p1, p2)
                     if t is not None and t < distances[i]:
                         distances[i] = t
-        if normalize:
-            return distances / max_range
+        if normalize: # normalizes to [-1, 1]
+            return (2 * distances - max_range) / max_range
         return distances
