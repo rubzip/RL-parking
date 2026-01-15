@@ -5,5 +5,5 @@ from dataclasses import dataclass
 class CarState:
     x: float
     y: float
-    phi: float
+    theta: float
     v: float
