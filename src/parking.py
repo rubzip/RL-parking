@@ -3,7 +3,6 @@ import numpy as np
 from .collisions import Rectangle
 from .models import CarState
 
-
 def _ray_segment_intersection(ray_origin, ray_dir, p1, p2):
     """
     Ray-segment intersection.
