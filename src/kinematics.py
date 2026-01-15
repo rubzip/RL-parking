@@ -1,7 +1,7 @@
 import numpy as np
 from .models import CarState
 
-class BykeKinematics:
+class BikeKinematics:
     def __init__(self, length: float, delta_t: float = 1e-2):
         if length <= 0:
             raise ValueError(f"`length` should be a positive number. Given value: {length}")
