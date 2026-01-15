@@ -1,76 +1,70 @@
+from dataclasses import dataclass
 import numpy as np
 
-
+@dataclass(frozen=True)
 class Rectangle:
-    def __init__(self, x: float, y: float, theta: float, w: float, h: float):
-        self.x = x
-        self.y = y
-        self.theta = theta
-        self.w = w
-        self.h = h
-        
-        # Pre-calculate rotation matrix components to save time during high-freq calls
-        self.c, self.s = np.cos(self.theta), np.sin(self.theta)
-        self.rot_matrix = np.array([[self.c, -self.s], [self.s, self.c]])
-        self.inv_rot = np.array([[self.c, self.s], [-self.s, self.c]])
-        self.corners = None
-        self.sample_points = None
+    # Simple and efficent collisionable class. 
+    # shape is a rectangle and only can interact with other rectangles
+    # Class is not mutable
+    x: float
+    y: float
+    theta: float
+    w: float
+    h: float
 
-    def _get_sample_points(self, grid_size: int = 5) -> np.ndarray:
-        """Generates a grid of points inside this rectangle."""
-        if self.sample_points is not None and len(self.sample_points.shape) == grid_size:
-            return self.sample_points
-        x_range = np.linspace(-self.w/2, self.w/2, grid_size)
-        y_range = np.linspace(-self.h/2, self.h/2, grid_size)
-        xv, yv = np.meshgrid(x_range, y_range)
-        local_points = np.stack([xv.ravel(), yv.ravel()], axis=1)
-        self.sample_points = (local_points @ self.rot_matrix.T) + np.array([self.x, self.y])
-        return self.sample_points
+    def __post_init__(self):
+        c = np.cos(self.theta)
+        s = np.sin(self.theta)
 
-    def _contains_points(self, points: np.ndarray) -> np.ndarray:
-        """
-        Vectorized check: inputs (N, 2) array of points.
-        Returns boolean array (N,) indicating which points are inside.
-        """
-        local_points = points - np.array([self.x, self.y])
-        local_aligned = local_points @ self.inv_rot.T
-        in_w = np.abs(local_aligned[:, 0]) <= (self.w / 2 + 1e-6)
-        in_h = np.abs(local_aligned[:, 1]) <= (self.h / 2 + 1e-6)
+        object.__setattr__(self, "_c", c)
+        object.__setattr__(self, "_s", s)
+        object.__setattr__(self, "_rot", np.array([[c, -s], [s, c]]))
+        object.__setattr__(self, "_inv_rot", np.array([[c, s], [-s, c]]))
+
+        # Precompute corners (safe because immutable)
+        dx = np.array([ self.w/2,  self.w/2, -self.w/2, -self.w/2])
+        dy = np.array([ self.h/2, -self.h/2, -self.h/2,  self.h/2])
+
+        corners = np.stack((
+            self.x + dx * c - dy * s,
+            self.y + dx * s + dy * c
+        ), axis=1)
+
+        object.__setattr__(self, "_corners", corners)
+
+    # ---------- geometry ----------
+
+    @property
+    def corners(self) -> np.ndarray:
+        return self._corners
+
+    def contains_points(self, points: np.ndarray) -> np.ndarray:
+        local = (points - np.array([self.x, self.y])) @ self._inv_rot.T
+        in_w = np.abs(local[:, 0]) <= self.w / 2 + 1e-6
+        in_h = np.abs(local[:, 1]) <= self.h / 2 + 1e-6
         return in_w & in_h
 
     def proportion_in(self, other: "Rectangle", grid_size: int = 5) -> float:
-        """
-        Optimized overlap calculation.
-        """
-        my_points = self._get_sample_points(grid_size)
-        mask = other._contains_points(my_points)
-        return np.mean(mask)
+        xs = np.linspace(-self.w / 2, self.w / 2, grid_size)
+        ys = np.linspace(-self.h / 2, self.h / 2, grid_size)
+        xv, yv = np.meshgrid(xs, ys)
+        local = np.stack([xv.ravel(), yv.ravel()], axis=1)
+        world = local @ self._rot.T + np.array([self.x, self.y])
+        return np.mean(other.contains_points(world))
 
-    def _get_corners(self) -> np.ndarray:
-        if self.corners is not None:
-            return self.corners
-        dx = np.array([self.w/2, self.w/2, -self.w/2, -self.w/2])
-        dy = np.array([self.h/2, -self.h/2, -self.h/2, self.h/2])
-        x_corners = self.x + dx * self.c - dy * self.s
-        y_corners = self.y + dx * self.s + dy * self.c
-        self.corners = np.stack((x_corners, y_corners), axis=1)
-        return self.corners
+    # ---------- collision ----------
 
     def is_collision(self, other: "Rectangle") -> bool:
-        """SAT Collision Detection."""
-        corners1 = self._get_corners()
-        corners2 = other._get_corners()
-        for corners in [corners1, corners2]:
+        for corners in (self._corners, other._corners):
             for i in range(4):
-                p1 = corners[i]
-                p2 = corners[(i + 1) % 4]
-                edge = p1 - p2
+                edge = corners[i] - corners[(i + 1) % 4]
                 axis = np.array([-edge[1], edge[0]])
                 norm = np.linalg.norm(axis)
-                if norm == 0: continue
+                if norm == 0:
+                    continue
                 axis /= norm
-                proj1 = corners1 @ axis
-                proj2 = corners2 @ axis
-                if np.max(proj1) < np.min(proj2) or np.max(proj2) < np.min(proj1):
+                p1 = self._corners @ axis
+                p2 = other._corners @ axis
+                if p1.max() < p2.min() or p2.max() < p1.min():
                     return False
         return True
